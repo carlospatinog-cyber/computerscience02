@@ -3,10 +3,16 @@
 
 using namespace std;
 
-// Función para rotar bits a la derecha
+// Función para rotar bits a la izquierda.
+unsigned char rotarIzquierda(unsigned char valor, int desplazamiento) {
+    return (valor >> desplazamiento) | (valor << (8 - desplazamiento));
+}
+
+// Función para rotar bits a la DERECHA (para desencriptar)
 unsigned char rotarDerecha(unsigned char valor, int desplazamiento) {
     return (valor >> desplazamiento) | (valor << (8 - desplazamiento));
 }
+
 
 // Función para desencriptar
 char* desencriptar(const char* mensajeEncriptado, int n, char K) {
