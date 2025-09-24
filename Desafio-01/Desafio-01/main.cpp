@@ -68,3 +68,36 @@ char* descomprimirRLE(const char* textoComprimido) {
         }
     }
 
+    // Crear espacio para el resultado
+    char* textoOriginal = new char[espacioNecesario + 1];
+    int posicion = 0;
+
+    // Descomprimir
+    i = 0;
+    while (i < tamañoComp) {
+        if (textoComprimido[i] >= '0' && textoComprimido[i] <= '9') {
+            // Leer cuántas veces se repite
+            int repeticiones = 0;
+            while (i < tamañoComp && textoComprimido[i] >= '0' && textoComprimido[i] <= '9') {
+                repeticiones = repeticiones * 10 + (textoComprimido[i] - '0');
+                i++;
+            }
+
+            // Leer la letra que se repite
+            if (i < tamañoComp) {
+                char letra = textoComprimido[i];
+                i++;
+                // Repetir la letra
+                for (int j = 0; j < repeticiones; j++) {
+                    textoOriginal[posicion] = letra;
+                    posicion++;
+                }
+            }
+        } else {
+            i++;
+        }
+    }
+
+    textoOriginal[posicion] = '\0';
+    return textoOriginal;
+}
