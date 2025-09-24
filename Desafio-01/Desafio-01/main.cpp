@@ -101,3 +101,55 @@ char* descomprimirRLE(const char* textoComprimido) {
     textoOriginal[posicion] = '\0';
     return textoOriginal;
 }
+
+// Función para descomprimir LZ78
+char* descomprimirLZ78(const char* textoComprimido) {
+    // Contar tamaño del texto comprimido
+    int tamañoComp = 0;
+    while (textoComprimido[tamañoComp] != '\0') {
+        tamañoComp++;
+    }
+
+    // Contar cuántos pares (numero,letra) hay
+    int cantidadPares = 0;
+    for (int i = 0; i < tamañoComp; i++) {
+        if (textoComprimido[i] == '(') {
+            cantidadPares++;
+        }
+    }
+
+    if (cantidadPares == 0) {
+        return nullptr;
+    }
+
+    // Arrays para guardar los números y letras
+    int* numeros = new int[cantidadPares];
+    char* letras = new char[cantidadPares];
+    int parActual = 0;
+
+    // Leer todos los pares
+    for (int i = 0; i < tamañoComp; i++) {
+        if (textoComprimido[i] == '(') {
+            i++; // Saltar el '('
+
+            // Leer el número
+            numeros[parActual] = 0;
+            while (i < tamañoComp && textoComprimido[i] >= '0' && textoComprimido[i] <= '9') {
+                numeros[parActual] = numeros[parActual] * 10 + (textoComprimido[i] - '0');
+                i++;
+            }
+
+            // Saltar la coma y espacios
+            while (i < tamañoComp && (textoComprimido[i] == ',' || textoComprimido[i] == ' ')) {
+                i++;
+            }
+
+            // Leer la letra
+            if (i < tamañoComp && textoComprimido[i] != ')') {
+                letras[parActual] = textoComprimido[i];
+                i++;
+            }
+
+            parActual++;
+        }
+    }
