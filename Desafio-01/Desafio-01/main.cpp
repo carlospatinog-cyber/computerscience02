@@ -153,3 +153,52 @@ char* descomprimirLZ78(const char* textoComprimido) {
             parActual++;
         }
     }
+    // Crear diccionario
+    char** diccionario = new char*[cantidadPares];
+    int* tamaños = new int[cantidadPares];
+
+    for (int i = 0; i < cantidadPares; i++) {
+        diccionario[i] = nullptr;
+        tamaños[i] = 0;
+    }
+
+    // Calcular tamaño total del resultado
+    int tamañoTotal = 0;
+    for (int i = 0; i < cantidadPares; i++) {
+        if (numeros[i] == 0) {
+            tamaños[i] = 1;
+            tamañoTotal += 1;
+        } else {
+            tamaños[i] = tamaños[numeros[i] - 1] + 1;
+            tamañoTotal += tamaños[i];
+        }
+    }
+
+    // Crear espacio para el resultado
+    char* textoOriginal = new char[tamañoTotal + 1];
+    int posResultado = 0;
+
+    // Reconstruir el texto
+    for (int i = 0; i < cantidadPares; i++) {
+        if (numeros[i] == 0) {
+            // Caso simple: nueva letra
+            textoOriginal[posResultado] = letras[i];
+            posResultado++;
+
+            // Guardar en diccionario
+            diccionario[i] = new char[2];
+            diccionario[i][0] = letras[i];
+            diccionario[i][1] = '\0';
+        } else {
+            // Caso con referencia al diccionario
+            int indiceRef = numeros[i] - 1;
+
+            // Copiar texto del diccionario
+            if (diccionario[indiceRef] != nullptr) {
+                int k = 0;
+                while (diccionario[indiceRef][k] != '\0') {
+                    textoOriginal[posResultado] = diccionario[indiceRef][k];
+                    posResultado++;
+                    k++;
+                }
+            }
