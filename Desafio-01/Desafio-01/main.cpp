@@ -153,3 +153,4 @@ char* descomprimirLZ78(const char* textoComprimido) {
             parActual++;
         }
     }
+,
