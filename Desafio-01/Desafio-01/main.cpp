@@ -237,3 +237,131 @@ char* descomprimirLZ78(const char* textoComprimido) {
 
     return textoOriginal;
 }
+
+textoOriginal[posResultado] = '\0';
+
+// Liberar memoria del diccionario
+for (int i = 0; i < cantidadPares; i++) {
+    if (diccionario[i] != nullptr) {
+        delete[] diccionario[i];
+    }
+}
+delete[] diccionario;
+delete[] tamaños;
+delete[] numeros;
+delete[] letras;
+
+return textoOriginal;
+}
+
+// Función para buscar un texto dentro de otro
+bool buscarTexto(const char* textoGrande, const char* textoBuscar) {
+    int tamañoGrande = 0;
+    int tamañoBuscar = 0;
+
+    while (textoGrande[tamañoGrande] != '\0') {
+        tamañoGrande++;
+    }
+    while (textoBuscar[tamañoBuscar] != '\0') {
+        tamañoBuscar++;
+    }
+
+    if (tamañoBuscar > tamañoGrande) {
+        return false;
+    }
+
+    for (int i = 0; i <= tamañoGrande - tamañoBuscar; i++) {
+        bool encontrado = true;
+        for (int j = 0; j < tamañoBuscar; j++) {
+            if (textoGrande[i + j] != textoBuscar[j]) {
+                encontrado = false;
+                break;
+            }
+        }
+        if (encontrado) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+int main() {
+    // DATOS DE ENTRADA (cambiar por los valores reales)
+    const char* mensajeCifrado = "MensajeEncriptadoQueNosDan";
+    const char* fragmentoConocido = "TextoQueSabemosQueEsta";
+
+    // Variables para guardar la solución
+    int mejorN = 0;
+    char mejorClave = 0;
+    bool usaRLE = true;
+    char* mensajeFinal = nullptr;
+
+    bool solucionEncontrada = false;
+
+    cout << "Buscando solucion..." << endl;
+
+    // Probar todas las combinaciones posibles
+    for (int n = 1; n < 8; n++) {
+        for (int clave = 0; clave < 256; clave++) {
+
+            // Paso 1: Desencriptar (rotación derecha + XOR)
+            char* textoDesencriptado = desencriptarMensaje(mensajeCifrado, n, clave);
+
+            // Paso 2: Probar con RLE primero
+            char* textoRLE = descomprimirRLE(textoDesencriptado);
+            if (textoRLE != nullptr && buscarTexto(textoRLE, fragmentoConocido)) {
+                mejorN = n;
+                mejorClave = clave;
+                usaRLE = true;
+                mensajeFinal = textoRLE;
+                solucionEncontrada = true;
+                delete[] textoDesencriptado;
+                break;
+            }
+            if (textoRLE != nullptr) {
+                delete[] textoRLE;
+            }
+
+            // Paso 3: Probar con LZ78 si RLE no funcionó
+            char* textoLZ78 = descomprimirLZ78(textoDesencriptado);
+            if (textoLZ78 != nullptr && buscarTexto(textoLZ78, fragmentoConocido)) {
+                mejorN = n;
+                mejorClave = clave;
+                usaRLE = false;
+                mensajeFinal = textoLZ78;
+                solucionEncontrada = true;
+                delete[] textoDesencriptado;
+                break;
+            }
+            if (textoLZ78 != nullptr) {
+                delete[] textoLZ78;
+            }
+
+            delete[] textoDesencriptado;
+
+            if (solucionEncontrada) {
+                break;
+            }
+        }
+        if (solucionEncontrada) {
+            break;
+        }
+    }
+
+    // Mostrar resultados
+    if (solucionEncontrada) {
+        cout << "\n=== SOLUCION ENCONTRADA ===" << endl;
+        cout << "Metodo de compresion: " << (usaRLE ? "RLE" : "LZ78") << endl;
+        cout << "Rotacion (n): " << mejorN << " bits a la IZQUIERDA" << endl;
+        cout << "Clave (K): " << (int)mejorClave << endl;
+        cout << "Mensaje original: " << mensajeFinal << endl;
+
+        delete[] mensajeFinal;
+    } else {
+        cout << "No se pudo encontrar la solucion." << endl;
+        cout << "Verifique los datos de entrada." << endl;
+    }
+
+    return 0;
+}
