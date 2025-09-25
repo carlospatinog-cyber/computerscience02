@@ -87,6 +87,7 @@ char* descomprimirRLE(const char* textoComprimido) {
             if (i < tamañoComp) {
                 char letra = textoComprimido[i];
                 i++;
+
                 // Repetir la letra
                 for (int j = 0; j < repeticiones; j++) {
                     textoOriginal[posicion] = letra;
@@ -153,6 +154,7 @@ char* descomprimirLZ78(const char* textoComprimido) {
             parActual++;
         }
     }
+
     // Crear diccionario
     char** diccionario = new char*[cantidadPares];
     int* tamaños = new int[cantidadPares];
@@ -202,6 +204,7 @@ char* descomprimirLZ78(const char* textoComprimido) {
                     k++;
                 }
             }
+
             // Añadir la nueva letra
             textoOriginal[posResultado] = letras[i];
             posResultado++;
@@ -236,22 +239,6 @@ char* descomprimirLZ78(const char* textoComprimido) {
     delete[] letras;
 
     return textoOriginal;
-}
-
-textoOriginal[posResultado] = '\0';
-
-// Liberar memoria del diccionario
-for (int i = 0; i < cantidadPares; i++) {
-    if (diccionario[i] != nullptr) {
-        delete[] diccionario[i];
-    }
-}
-delete[] diccionario;
-delete[] tamaños;
-delete[] numeros;
-delete[] letras;
-
-return textoOriginal;
 }
 
 // Función para buscar un texto dentro de otro
