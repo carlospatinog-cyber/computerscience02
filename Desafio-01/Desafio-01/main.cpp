@@ -1,353 +1,265 @@
-#include <iostream>
+#include <iostream> //directiva para incluir la biblioteca estándar de C++ que proporciona funciones para operaciones de entrada y salida (input/output
+#include <fstream> //librería que permite trabajar con archivos externos (también llamados ficheros) para la lectura y escritura de datos
 
-using namespace std;
+using namespace std; // indicar al compilador que todos los identificadores (como cin, cout, vector, etc.) se consideren parte del espacio de nombres std (la librería estándar), eliminando la necesidad de escribir std:: antes de cada uno.
 
-// Función para rotar bits a la IZQUIERDA (para verificar)
-unsigned char rotarIzquierda(unsigned char letra, int n) {
-    return (letra << n) | (letra >> (8 - n));
+// --- Funciones basicas para la lectura del dataset ---
+//evalua  si un carácter es un  numero (0-9)
+bool esDigito(char c) {
+    return c >= '0' && c <= '9';
 }
 
-// Función para rotar bits a la DERECHA (para desencriptar)
-unsigned char rotarDerecha(unsigned char letra, int n) {
-    return (letra >> n) | (letra << (8 - n));
+//evalua  si un carácter es una letra valida (excluye tildes, Ñ y caracteres extendidos)
+bool esLetra(char c) {
+    unsigned char uc = (unsigned char)c;
+    // Excluir caracteres extendidos (donde están tildes, Ñ, diéresis,  etc.)
+    if (uc >= 0xC0) return false; //0xC0 en hexadecimal = 192 en decimal => Todos los caracteres desde 192 hasta 255 son EXCLUIDOS
+    // Permitir solo A-Z y a-z básicos
+    return (uc >= 'A' && uc <= 'Z') || (uc >= 'a' && uc <= 'z');
 }
 
-// Función para desencriptar - ORDEN CORRECTO
-char* desencriptarMensaje(const char* textoCifrado, int n, char clave) {
-    // Contar cuántas letras tiene el mensaje
-    int tamaño = 0;
-    while (textoCifrado[tamaño] != '\0') {
-        tamaño++;
-    }
-
-    // Crear espacio para guardar el resultado
-    char* textoDescifrado = new char[tamaño + 1];
-
-    // Procesar cada letra del mensaje
-    for (int i = 0; i < tamaño; i++) {
-        unsigned char letra = textoCifrado[i];
-
-        // ORDEN CORRECTO para desencriptar:
-        // 1. XOR con la clave (revierte el XOR de la encriptación)
-        // 2. Rotación a la DERECHA (revierte la rotación a la IZQUIERDA de la encriptación)
-
-        letra = letra ^ clave;          // Paso 1: XOR
-        letra = rotarDerecha(letra, n); // Paso 2: Rotación derecha
-
-        textoDescifrado[i] = letra;
-    }
-
-    // Poner marca de final de texto
-    textoDescifrado[tamaño] = '\0';
-
-    return textoDescifrado;
+// Función adicional para validar caracteres permitidos (letras válidas y dígitos)
+bool esCaracterPermitido(char c) {
+    return esLetra(c) || esDigito(c);
 }
 
-// Función para descomprimir RLE
-char* descomprimirRLE(const char* textoComprimido) {
-    // Contar tamaño del texto comprimido
-    int tamañoComp = 0;
-    while (textoComprimido[tamañoComp] != '\0') {
-        tamañoComp++;
-    }
-
-    // Calcular cuánto espacio necesitamos
-    int espacioNecesario = 0;
-    int i = 0;
-    while (i < tamañoComp) {
-        if (textoComprimido[i] >= '0' && textoComprimido[i] <= '9') {
-            // Leer el número
-            int numero = 0;
-            while (i < tamañoComp && textoComprimido[i] >= '0' && textoComprimido[i] <= '9') {
-                numero = numero * 10 + (textoComprimido[i] - '0');
-                i++;
-            }
-            espacioNecesario += numero;
-        } else {
-            i++;
-        }
-    }
-
-    // Crear espacio para el resultado
-    char* textoOriginal = new char[espacioNecesario + 1];
-    int posicion = 0;
-
-    // Descomprimir
-    i = 0;
-    while (i < tamañoComp) {
-        if (textoComprimido[i] >= '0' && textoComprimido[i] <= '9') {
-            // Leer cuántas veces se repite
-            int repeticiones = 0;
-            while (i < tamañoComp && textoComprimido[i] >= '0' && textoComprimido[i] <= '9') {
-                repeticiones = repeticiones * 10 + (textoComprimido[i] - '0');
-                i++;
-            }
-
-            // Leer la letra que se repite
-            if (i < tamañoComp) {
-                char letra = textoComprimido[i];
-                i++;
-
-                // Repetir la letra
-                for (int j = 0; j < repeticiones; j++) {
-                    textoOriginal[posicion] = letra;
-                    posicion++;
-                }
-            }
-        } else {
-            i++;
-        }
-    }
-
-    textoOriginal[posicion] = '\0';
-    return textoOriginal;
+// --- Rotación a la derecha de un byte ---
+// Realizar una rotación de bits a la derecha en un byte
+unsigned char rotarDerecha(unsigned char valor, int n) {
+    return (valor >> n) | (valor << (8 - n));
 }
 
-// Función para descomprimir LZ78
-char* descomprimirLZ78(const char* textoComprimido) {
-    // Contar tamaño del texto comprimido
-    int tamañoComp = 0;
-    while (textoComprimido[tamañoComp] != '\0') {
-        tamañoComp++;
-    }
-
-    // Contar cuántos pares (numero,letra) hay
-    int cantidadPares = 0;
-    for (int i = 0; i < tamañoComp; i++) {
-        if (textoComprimido[i] == '(') {
-            cantidadPares++;
-        }
-    }
-
-    if (cantidadPares == 0) {
-        return nullptr;
-    }
-
-    // Arrays para guardar los números y letras
-    int* numeros = new int[cantidadPares];
-    char* letras = new char[cantidadPares];
-    int parActual = 0;
-
-    // Leer todos los pares
-    for (int i = 0; i < tamañoComp; i++) {
-        if (textoComprimido[i] == '(') {
-            i++; // Saltar el '('
-
-            // Leer el número
-            numeros[parActual] = 0;
-            while (i < tamañoComp && textoComprimido[i] >= '0' && textoComprimido[i] <= '9') {
-                numeros[parActual] = numeros[parActual] * 10 + (textoComprimido[i] - '0');
-                i++;
-            }
-
-            // Saltar la coma y espacios
-            while (i < tamañoComp && (textoComprimido[i] == ',' || textoComprimido[i] == ' ')) {
-                i++;
-            }
-
-            // Leer la letra
-            if (i < tamañoComp && textoComprimido[i] != ')') {
-                letras[parActual] = textoComprimido[i];
-                i++;
-            }
-
-            parActual++;
-        }
-    }
-
-    // Crear diccionario
-    char** diccionario = new char*[cantidadPares];
-    int* tamaños = new int[cantidadPares];
-
-    for (int i = 0; i < cantidadPares; i++) {
-        diccionario[i] = nullptr;
-        tamaños[i] = 0;
-    }
-
-    // Calcular tamaño total del resultado
-    int tamañoTotal = 0;
-    for (int i = 0; i < cantidadPares; i++) {
-        if (numeros[i] == 0) {
-            tamaños[i] = 1;
-            tamañoTotal += 1;
-        } else {
-            tamaños[i] = tamaños[numeros[i] - 1] + 1;
-            tamañoTotal += tamaños[i];
-        }
-    }
-
-    // Crear espacio para el resultado
-    char* textoOriginal = new char[tamañoTotal + 1];
-    int posResultado = 0;
-
-    // Reconstruir el texto
-    for (int i = 0; i < cantidadPares; i++) {
-        if (numeros[i] == 0) {
-            // Caso simple: nueva letra
-            textoOriginal[posResultado] = letras[i];
-            posResultado++;
-
-            // Guardar en diccionario
-            diccionario[i] = new char[2];
-            diccionario[i][0] = letras[i];
-            diccionario[i][1] = '\0';
-        } else {
-            // Caso con referencia al diccionario
-            int indiceRef = numeros[i] - 1;
-
-            // Copiar texto del diccionario
-            if (diccionario[indiceRef] != nullptr) {
-                int k = 0;
-                while (diccionario[indiceRef][k] != '\0') {
-                    textoOriginal[posResultado] = diccionario[indiceRef][k];
-                    posResultado++;
-                    k++;
-                }
-            }
-
-            // Añadir la nueva letra
-            textoOriginal[posResultado] = letras[i];
-            posResultado++;
-
-            // Guardar en diccionario
-            int tamañoNuevo = tamaños[i];
-            diccionario[i] = new char[tamañoNuevo + 1];
-
-            if (diccionario[indiceRef] != nullptr) {
-                int k = 0;
-                while (diccionario[indiceRef][k] != '\0') {
-                    diccionario[i][k] = diccionario[indiceRef][k];
-                    k++;
-                }
-                diccionario[i][k] = letras[i];
-                diccionario[i][k + 1] = '\0';
-            }
-        }
-    }
-
-    textoOriginal[posResultado] = '\0';
-
-    // Liberar memoria del diccionario
-    for (int i = 0; i < cantidadPares; i++) {
-        if (diccionario[i] != nullptr) {
-            delete[] diccionario[i];
-        }
-    }
-    delete[] diccionario;
-    delete[] tamaños;
-    delete[] numeros;
-    delete[] letras;
-
-    return textoOriginal;
-}
-
-// Función para buscar un texto dentro de otro
-bool buscarTexto(const char* textoGrande, const char* textoBuscar) {
-    int tamañoGrande = 0;
-    int tamañoBuscar = 0;
-
-    while (textoGrande[tamañoGrande] != '\0') {
-        tamañoGrande++;
-    }
-    while (textoBuscar[tamañoBuscar] != '\0') {
-        tamañoBuscar++;
-    }
-
-    if (tamañoBuscar > tamañoGrande) {
+// --- Función para leer archivos ---
+bool leerArchivo(const char* nombreArchivo, unsigned char*& buffer, size_t& tamano) {
+    ifstream archivo(nombreArchivo, ios::in | ios::binary | ios::ate);
+    if (!archivo.is_open()) {
+        cerr << "Error al abrir el archivo: " << nombreArchivo << endl;
+        buffer = nullptr;
+        tamano = 0;
         return false;
     }
 
-    for (int i = 0; i <= tamañoGrande - tamañoBuscar; i++) {
-        bool encontrado = true;
-        for (int j = 0; j < tamañoBuscar; j++) {
-            if (textoGrande[i + j] != textoBuscar[j]) {
-                encontrado = false;
-                break;
-            }
-        }
-        if (encontrado) {
-            return true;
-        }
+    tamano = archivo.tellg();
+    archivo.seekg(0, ios::beg);
+
+    buffer = new unsigned char[tamano];
+    if (!buffer) {
+        cerr << "Error al asignar memoria para el archivo." << endl;
+        archivo.close();
+        tamano = 0;
+        return false;
     }
 
-    return false;
+    archivo.read((char*)buffer, tamano);
+    archivo.close();
+    return true;
 }
 
-int main() {
-    // DATOS DE ENTRADA (cambiar por los valores reales)
-    const char* mensajeCifrado = "MensajeEncriptadoQueNosDan";
-    const char* fragmentoConocido = "TextoQueSabemosQueEsta";
-
-    // Variables para guardar la solución
-    int mejorN = 0;
-    char mejorClave = 0;
-    bool usaRLE = true;
-    char* mensajeFinal = nullptr;
-
-    bool solucionEncontrada = false;
-
-    cout << "Buscando solucion..." << endl;
-
-    // Probar todas las combinaciones posibles
-    for (int n = 1; n < 8; n++) {
-        for (int clave = 0; clave < 256; clave++) {
-
-            // Paso 1: Desencriptar (rotación derecha + XOR)
-            char* textoDesencriptado = desencriptarMensaje(mensajeCifrado, n, clave);
-
-            // Paso 2: Probar con RLE primero
-            char* textoRLE = descomprimirRLE(textoDesencriptado);
-            if (textoRLE != nullptr && buscarTexto(textoRLE, fragmentoConocido)) {
-                mejorN = n;
-                mejorClave = clave;
-                usaRLE = true;
-                mensajeFinal = textoRLE;
-                solucionEncontrada = true;
-                delete[] textoDesencriptado;
-                break;
+// --- Detectar si es RLE ---
+bool esRLE(const unsigned char* mensaje, size_t tamano) {
+    for (size_t i = 0; i < tamano; i++) {
+        if (esDigito(mensaje[i])) {
+            // Avanzar sobre todos los dígitos
+            while (i < tamano && esDigito(mensaje[i])) {
+                i++;
             }
-            if (textoRLE != nullptr) {
-                delete[] textoRLE;
+            // Después de los dígitos debe haber una letra VÁLIDA
+            if (i >= tamano || !esLetra(mensaje[i])) {
+                return false;
             }
-
-            // Paso 3: Probar con LZ78 si RLE no funcionó
-            char* textoLZ78 = descomprimirLZ78(textoDesencriptado);
-            if (textoLZ78 != nullptr && buscarTexto(textoLZ78, fragmentoConocido)) {
-                mejorN = n;
-                mejorClave = clave;
-                usaRLE = false;
-                mensajeFinal = textoLZ78;
-                solucionEncontrada = true;
-                delete[] textoDesencriptado;
-                break;
-            }
-            if (textoLZ78 != nullptr) {
-                delete[] textoLZ78;
-            }
-
-            delete[] textoDesencriptado;
-
-            if (solucionEncontrada) {
-                break;
-            }
+        } else if (!esLetra(mensaje[i])) {
+            return false; // Carácter no válido (incluye tildes, Ñ, etc.)
         }
-        if (solucionEncontrada) {
-            break;
+    }
+    return true;
+}
+
+// --- Descomprimir RLE (CORREGIDA) ---
+bool descomprimirRLE(const unsigned char* comprimido, size_t tamComprimido,
+                     unsigned char*& descomprimido, size_t& tamDescomprimido) {
+    // Primera pasada: calcular tamaño necesario
+    tamDescomprimido = 0;
+
+    for (size_t i = 0; i < tamComprimido; i++) {
+        if (esDigito(comprimido[i])) {
+            // Leer número completo (puede tener múltiples dígitos)
+            int count = 0;
+            while (i < tamComprimido && esDigito(comprimido[i])) {
+                count = count * 10 + (comprimido[i] - '0');
+                i++;
+            }
+            // Verificar que hay una letra VÁLIDA después del número
+            if (i < tamComprimido && esLetra(comprimido[i])) {
+                tamDescomprimido += count;
+            } else {
+                return false; // Formato inválido
+            }
+        } else if (esLetra(comprimido[i])) {
+            tamDescomprimido++; // Letra válida sola = count 1
+        } else {
+            return false; // Carácter inválido (tildes, Ñ, etc.)
         }
     }
 
-    // Mostrar resultados
-    if (solucionEncontrada) {
-        cout << "\n=== SOLUCION ENCONTRADA ===" << endl;
-        cout << "Metodo de compresion: " << (usaRLE ? "RLE" : "LZ78") << endl;
-        cout << "Rotacion (n): " << mejorN << " bits a la IZQUIERDA" << endl;
-        cout << "Clave (K): " << (int)mejorClave << endl;
-        cout << "Mensaje original: " << mensajeFinal << endl;
+    // Segunda pasada: descomprimir
+    descomprimido = new unsigned char[tamDescomprimido + 1];
+    size_t pos = 0;
 
-        delete[] mensajeFinal;
-    } else {
-        cout << "No se pudo encontrar la solucion." << endl;
-        cout << "Verifique los datos de entrada." << endl;
+    for (size_t i = 0; i < tamComprimido; i++) {
+        if (esDigito(comprimido[i])) {
+            // Leer número completo
+            int count = 0;
+            while (i < tamComprimido && esDigito(comprimido[i])) {
+                count = count * 10 + (comprimido[i] - '0');
+                i++;
+            }
+            // Repetir la letra 'count' veces
+            if (i < tamComprimido && esLetra(comprimido[i])) {
+                for (int j = 0; j < count; j++) {
+                    descomprimido[pos++] = comprimido[i];
+                }
+            }
+        } else if (esLetra(comprimido[i])) {
+            descomprimido[pos++] = comprimido[i]; // Letra válida sola
+        }
+    }
+    descomprimido[tamDescomprimido] = '\0';
+    return true;
+}
+
+// --- Procesar archivo encriptado ---
+void procesarEncriptado(const unsigned char* buffer, size_t tamBuffer,
+                        unsigned char*& resultado, size_t& tamResultado) {
+    // Parámetros de desencriptación
+    const unsigned char K = 0x5A;  // Clave XOR
+    const int n = 3;               // Bits a rotar
+
+    // Extraer bloques después de "ZR"
+    unsigned char* extraido = new unsigned char[tamBuffer];
+    size_t tamExtraido = 0;
+
+    for (size_t i = 0; i < tamBuffer - 1; i++) {
+        if (buffer[i] == 'Z' && buffer[i + 1] == 'R') {
+            if (i + 2 < tamBuffer) {
+                extraido[tamExtraido++] = buffer[i + 2];
+            }
+        }
+    }
+
+    // Desencriptar (XOR + Rotación derecha)
+    resultado = new unsigned char[tamExtraido + 1];
+    tamResultado = tamExtraido;
+
+    for (size_t i = 0; i < tamExtraido; i++) {
+        unsigned char x = extraido[i] ^ K;
+        resultado[i] = rotarDerecha(x, n);
+    }
+    resultado[tamExtraido] = '\0';
+
+    delete[] extraido;
+}
+
+// Función para validar texto final (opcional - para debugging)
+bool validarTextoFinal(const unsigned char* texto, size_t tamano) {
+    for (size_t i = 0; i < tamano; i++) {
+        if (!esCaracterPermitido(texto[i]) && texto[i] != ' ') {
+            cout << "Carácter no permitido detectado: '" << texto[i]
+                 << "' (ASCII: " << (int)texto[i] << ")" << endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+// --- Función principal ---
+int main() {
+    int n;
+    cout << "Ingrese la cantidad de archivos a evaluar: ";
+    cin >> n;
+
+    for (int i = 1; i <= n; ++i) {
+        char nombreEncriptado[20];
+        char nombrePista[20];
+
+        snprintf(nombreEncriptado, sizeof(nombreEncriptado), "Encriptado%d.txt", i);
+        snprintf(nombrePista, sizeof(nombrePista), "pista%d.txt", i);
+
+        // Leer archivos
+        unsigned char* mensajeEncriptado = nullptr;
+        size_t tamanoEncriptado = 0;
+        unsigned char* pista = nullptr;
+        size_t tamanoPista = 0;
+
+        if (!leerArchivo(nombreEncriptado, mensajeEncriptado, tamanoEncriptado)) {
+            continue;
+        }
+
+        if (!leerArchivo(nombrePista, pista, tamanoPista)) {
+            delete[] mensajeEncriptado;
+            continue;
+        }
+
+        cout << "\n=== Procesando Archivo " << i << " ===" << endl;
+
+        // Procesar encriptado
+        unsigned char* desencriptado = nullptr;
+        size_t tamDesencriptado = 0;
+        procesarEncriptado(mensajeEncriptado, tamanoEncriptado, desencriptado, tamDesencriptado);
+
+        cout << "Texto desencriptado (" << tamDesencriptado << " bytes):" << endl;
+        // Mostrar solo los primeros 100 caracteres para debug
+        for (size_t j = 0; j < 100 && j < tamDesencriptado; ++j) {
+            cout << desencriptado[j];
+        }
+        cout << endl;
+
+        // Detectar método de compresión y descomprimir
+        unsigned char* descomprimido = nullptr;
+        size_t tamDescomprimido = 0;
+
+        if (esRLE(desencriptado, tamDesencriptado)) {
+            cout << "Metodo detectado: RLE" << endl;
+            if (descomprimirRLE(desencriptado, tamDesencriptado, descomprimido, tamDescomprimido)) {
+                // Validar texto descomprimido (opcional)
+                if (validarTextoFinal(descomprimido, tamDescomprimido)) {
+                    cout << "Texto validado correctamente - sin tildes ni caracteres no permitidos" << endl;
+                }
+
+                cout << "Texto descomprimido (" << tamDescomprimido << " bytes):" << endl;
+                // Mostrar resultado completo
+                for (size_t j = 0; j < tamDescomprimido; ++j) {
+                    cout << descomprimido[j];
+                }
+                cout << endl;
+            } else {
+                cout << "Error en descompresión RLE" << endl;
+            }
+        } else {
+            cout << "Metodo no reconocido o sin compresión" << endl;
+            // Validar texto desencriptado (opcional)
+            if (validarTextoFinal(desencriptado, tamDesencriptado)) {
+                cout << "Texto validado correctamente - sin tildes ni caracteres no permitidos" << endl;
+            }
+
+            cout << "Resultado final:" << endl;
+            for (size_t j = 0; j < tamDesencriptado; ++j) {
+                cout << desencriptado[j];
+            }
+            cout << endl;
+        }
+
+        // Mostrar pista
+        cout << "Pista: ";
+        for (size_t j = 0; j < tamanoPista; ++j) {
+            cout << pista[j];
+        }
+        cout << "\n==========================" << endl;
+
+        // Liberar memoria
+        delete[] mensajeEncriptado;
+        delete[] pista;
+        delete[] desencriptado;
+        if (descomprimido) delete[] descomprimido;
     }
 
     return 0;
